@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Planilha de Horário Interativa</title>
   <script src="/_sdk/element_sdk.js"></script>
-  <script src="/_sdk/data_sdk.js"></script>
   <style>
     :root{
       --bg:#0b1220;
@@ -111,6 +110,7 @@
   </style>
   <script src="https://cdn.tailwindcss.com/3.4.17" type="text/javascript"></script>
   <style>body { box-sizing: border-box; }</style>
+  <script src="/_sdk/data_sdk.js" type="text/javascript"></script>
  </head>
  <body>
   <div class="app-wrapper">
@@ -120,14 +120,18 @@
       <h1 id="app-title">Planilha de Horário — T40</h1>
       <p class="sub">Planilha interativa com aulas, EXT/Projetos e compensação para completar 40h semanais.</p>
      </div>
-     <div class="header-actions" style="position:relative"><button class="btn" id="export-btn">📥 Exportar</button>
-      <div class="export-menu" id="export-menu"><button onclick="exportPDF()">Salvar como PDF</button> <button onclick="exportCSV()">Baixar CSV</button> <button onclick="exportJSON()">Baixar JSON</button>
+     <div class="header-actions" style="position:relative">
+      <button class="btn" id="fill-template-btn" onclick="fillTemplate()">⚡ Preencher Template</button> <button class="btn" id="export-btn">📥 Exportar</button>
+      <div class="export-menu" id="export-menu">
+       <button onclick="exportPDF()">Salvar como PDF</button> <button onclick="exportCSV()">Baixar CSV</button> <button onclick="exportJSON()">Baixar JSON</button>
       </div><button class="btn btn-primary" onclick="window.print()">🖨️ Imprimir</button>
      </div>
     </header>
     <section class="card">
-     <div class="controls"><span style="color:var(--muted);font-size:12px;font-weight:700">FILTRAR:</span>
-      <div class="filter-group"><button class="filter-btn active" onclick="filterType('all')">Todos</button> <button class="filter-btn" onclick="filterType('aula')">🎓 Aulas</button> <button class="filter-btn" onclick="filterType('comp')">⧉ Compensação</button> <button class="filter-btn" onclick="filterType('ext')">■ EXT/Projetos</button>
+     <div class="controls">
+      <span style="color:var(--muted);font-size:12px;font-weight:700">FILTRAR:</span>
+      <div class="filter-group">
+       <button class="filter-btn active" onclick="filterType('all')">Todos</button> <button class="filter-btn" onclick="filterType('aula')">🎓 Aulas</button> <button class="filter-btn" onclick="filterType('comp')">⧉ Compensação</button> <button class="filter-btn" onclick="filterType('ext')">■ EXT/Projetos</button>
       </div>
      </div>
      <div class="summary-grid" id="summary">
@@ -179,7 +183,8 @@
        <tbody id="table-body"></tbody>
       </table>
      </div>
-     <div class="legend"><span><span class="dot aula"></span><strong>Aulas</strong></span> <span><span class="dot ext"></span><strong>EXT / Projetos</strong></span> <span><span class="dot comp"></span><strong>Compensação</strong></span>
+     <div class="legend">
+      <span><span class="dot aula"></span><strong>Aulas</strong></span> <span><span class="dot ext"></span><strong>EXT / Projetos</strong></span> <span><span class="dot comp"></span><strong>Compensação</strong></span>
      </div>
     </section>
    </div>
@@ -189,7 +194,8 @@
     <div class="modal-header">
      Editar Bloco
     </div><label style="display:block;color:var(--muted);font-size:12px;margin-bottom:6px">Tipo de Atividade</label> <select id="cell-type" class="modal-input" style="padding:8px;font-size:13px"> <option value="">— Vazio —</option> <option value="aula">🎓 Aula</option> <option value="comp">⧉ Compensação</option> <option value="ext">■ EXT/Projetos</option> </select> <label style="display:block;color:var(--muted);font-size:12px;margin-bottom:6px;margin-top:6px">Nome da Amizade/Turma</label> <input type="text" id="cell-turma" class="modal-input" placeholder="Ex: T40, T41, Turma A"> <label style="display:block;color:var(--muted);font-size:12px;margin-bottom:6px;margin-top:6px">Descrição (opcional)</label> <input type="text" id="cell-content" class="modal-input" placeholder="Ex: Biologia, HA-H79, Projeto X">
-    <div class="modal-actions"><button class="btn" onclick="closeModal()">Cancelar</button> <button class="btn btn-primary" onclick="saveCell()">Salvar</button>
+    <div class="modal-actions">
+     <button class="btn" onclick="closeModal()">Cancelar</button> <button class="btn btn-primary" onclick="saveCell()">Salvar</button>
     </div>
    </div>
   </div>
@@ -197,46 +203,6 @@
 let scheduleData = [];
 let currentFilter = 'all';
 let editingCell = null;
-
-const DEFAULT_TEMPLATE = (() => {
-  const days = ['monday','tuesday','wednesday','thursday','friday'];
-  const data = [];
-
-  function setCell(timeSlot, day, type, turma, content){
-    data.push({ timeSlot, day, value: `${type}::${turma}::${content}` });
-  }
-
-  // ✅ NOTURNO (4 blocos)
-  const night = ['19:30–20:20','20:21–21:10','21:20–22:10','22:11–23:00'];
-
-  night.forEach(t => {
-    setCell(t,'monday','aula','Noturno','Biologia');
-    setCell(t,'tuesday','aula','Noturno','Ed. Física 32');
-    setCell(t,'wednesday','aula','Noturno','Ed. Física 32');
-    setCell(t,'thursday','aula','Noturno','Ed. Física 33');
-    setCell(t,'friday','aula','Noturno','Nutrição');
-  });
-
-  // ✅ DIURNO (completa com EXT / HA / Projetos)
-  const daytime = [
-    '07:45–08:35','08:36–09:25','09:40–10:30',
-    '10:31–11:20','11:21–12:10',
-    '13:30–14:20','14:21–15:10','15:30–16:20'
-  ];
-
-  daytime.forEach((t, idx) => {
-    days.forEach((day, dIdx) => {
-      const useExt = (idx + dIdx) % 2 === 0;
-      if (useExt){
-        setCell(t, day, 'ext', 'EXT', 'EXT / Projetos');
-      } else {
-        setCell(t, day, 'comp', 'HA', 'HA / Projetos');
-      }
-    });
-  });
-
-  return data;
-})();
 
 const HOURS = [
   { time: '07:45–08:35', type: 'day' },
@@ -257,43 +223,67 @@ const HOURS = [
   { time: '22:11–23:00', type: 'night' }
 ];
 
-const dataHandler = {
-  onDataChanged(data) {
-    scheduleData = data;
-    renderTable();
-    updateSummary();
+// Initialize storage
+function loadData() {
+  const saved = localStorage.getItem('scheduleData');
+  if (saved) {
+    scheduleData = JSON.parse(saved);
   }
-};
+}
+
+function saveData() {
+  localStorage.setItem('scheduleData', JSON.stringify(scheduleData));
+}
 
 
 
 
+
+function fillTemplate() {
+  const template = [
+    { timeSlot: '07:45–08:35', monday: 'aula::T40::Biologia', tuesday: 'aula::T40::Biologia', wednesday: 'aula::T40::Biologia', thursday: 'aula::T40::Biologia', friday: 'aula::T40::Biologia', rowType: 'aula' },
+    { timeSlot: '08:36–09:25', monday: 'aula::T40::História', tuesday: 'aula::T40::História', wednesday: 'aula::T40::História', thursday: 'aula::T40::História', friday: 'aula::T40::História', rowType: 'aula' },
+    { timeSlot: '09:40–10:30', monday: 'aula::T40::Matemática', tuesday: 'aula::T40::Matemática', wednesday: 'aula::T40::Matemática', thursday: 'aula::T40::Matemática', friday: 'aula::T40::Matemática', rowType: 'aula' },
+    { timeSlot: '10:31–11:20', monday: 'ext::Projeto A::', tuesday: 'ext::Projeto B::', wednesday: 'comp::::Compensação', thursday: 'comp::::Compensação', friday: 'comp::::Compensação', rowType: 'ext' },
+    { timeSlot: '11:21–12:10', monday: 'ext::Projeto A::', tuesday: 'ext::Projeto B::', wednesday: 'comp::::Compensação', thursday: 'comp::::Compensação', friday: 'comp::::Compensação', rowType: 'ext' },
+    { timeSlot: '13:30–14:20', monday: 'aula::T40::Física', tuesday: 'aula::T40::Química', wednesday: 'aula::T40::Física', thursday: 'aula::T40::Química', friday: 'aula::T40::Física', rowType: 'aula' },
+    { timeSlot: '14:21–15:10', monday: 'aula::T40::Português', tuesday: 'aula::T40::Português', wednesday: 'aula::T40::Português', thursday: 'aula::T40::Português', friday: 'aula::T40::Português', rowType: 'aula' }
+  ];
+
+  scheduleData = template;
+  saveData();
+  renderTable();
+  updateSummary();
+  showToast('Template carregado! 🎉');
+}
 
 async function initApp() {
-  await window.dataSdk.init(dataHandler);
+  loadData();
   updateWeekHeaders();
   renderTable();
   updateSummary();
 
-  window.elementSdk.init({
-    defaultConfig: {
-      app_title: 'Planilha de Horário — T40'
-    },
-    onConfigChange(config) {
-      document.getElementById('app-title').textContent = config.app_title;
-    },
-    mapToCapabilities(config) {
-      return {
-        recolorables: [],
-        borderables: [],
-        fontEditable: undefined,
-        fontSizeable: undefined
-      };
-    },
-    mapToEditPanelValues(config) {
-      return new Map([['app_title', config.app_title]]);
-    }
-  });
+  if (window.elementSdk) {
+    window.elementSdk.init({
+      defaultConfig: {
+        app_title: 'Planilha de Horário — T40'
+      },
+      onConfigChange(config) {
+        document.getElementById('app-title').textContent = config.app_title;
+      },
+      mapToCapabilities(config) {
+        return {
+          recolorables: [],
+          borderables: [],
+          fontEditable: undefined,
+          fontSizeable: undefined
+        };
+      },
+      mapToEditPanelValues(config) {
+        return new Map([['app_title', config.app_title]]);
+      }
+    });
+  }
 }
 
 function updateWeekHeaders() {
@@ -406,7 +396,6 @@ async function saveCell() {
   if (!type) {
     if (existing) {
       existing[day] = '';
-      await window.dataSdk.update(existing);
     }
   } else {
     const cellData = `${type}::${turma}::${content}`;
@@ -414,7 +403,6 @@ async function saveCell() {
     if (existing) {
       existing[day] = cellData;
       existing.rowType = type;
-      await window.dataSdk.update(existing);
     } else {
       const newRecord = {
         timeSlot: time,
@@ -426,11 +414,14 @@ async function saveCell() {
         rowType: type
       };
       newRecord[day] = cellData;
-      await window.dataSdk.create(newRecord);
+      scheduleData.push(newRecord);
     }
   }
 
+  saveData();
   closeModal();
+  renderTable();
+  updateSummary();
   showToast('Alteração salva! 📝');
 }
 
@@ -554,5 +545,5 @@ document.addEventListener('click', (e) => {
 
 initApp();
 </script>
- <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9d31deb1102dca0a',t:'MTc3MTk2NjU4OS4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+ <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9d31ea84b4a30bc1',t:'MTc3MTk2NzA3NC4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
