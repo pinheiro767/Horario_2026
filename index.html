@@ -120,18 +120,14 @@
       <h1 id="app-title">Planilha de Horário — T40</h1>
       <p class="sub">Planilha interativa com aulas, EXT/Projetos e compensação para completar 40h semanais.</p>
      </div>
-     <div class="header-actions" style="position:relative">
-      <button class="btn" id="export-btn">📥 Exportar</button>
-      <div class="export-menu" id="export-menu">
-       <button onclick="exportPDF()">Salvar como PDF</button> <button onclick="exportCSV()">Baixar CSV</button> <button onclick="exportJSON()">Baixar JSON</button>
+     <div class="header-actions" style="position:relative"><button class="btn" id="export-btn">📥 Exportar</button>
+      <div class="export-menu" id="export-menu"><button onclick="exportPDF()">Salvar como PDF</button> <button onclick="exportCSV()">Baixar CSV</button> <button onclick="exportJSON()">Baixar JSON</button>
       </div><button class="btn btn-primary" onclick="window.print()">🖨️ Imprimir</button>
      </div>
     </header>
     <section class="card">
-     <div class="controls">
-      <span style="color:var(--muted);font-size:12px;font-weight:700">FILTRAR:</span>
-      <div class="filter-group">
-       <button class="filter-btn active" onclick="filterType('all')">Todos</button> <button class="filter-btn" onclick="filterType('aula')">🎓 Aulas</button> <button class="filter-btn" onclick="filterType('comp')">⧉ Compensação</button> <button class="filter-btn" onclick="filterType('ext')">■ EXT/Projetos</button>
+     <div class="controls"><span style="color:var(--muted);font-size:12px;font-weight:700">FILTRAR:</span>
+      <div class="filter-group"><button class="filter-btn active" onclick="filterType('all')">Todos</button> <button class="filter-btn" onclick="filterType('aula')">🎓 Aulas</button> <button class="filter-btn" onclick="filterType('comp')">⧉ Compensação</button> <button class="filter-btn" onclick="filterType('ext')">■ EXT/Projetos</button>
       </div>
      </div>
      <div class="summary-grid" id="summary">
@@ -183,8 +179,7 @@
        <tbody id="table-body"></tbody>
       </table>
      </div>
-     <div class="legend">
-      <span><span class="dot aula"></span><strong>Aulas</strong></span> <span><span class="dot ext"></span><strong>EXT / Projetos</strong></span> <span><span class="dot comp"></span><strong>Compensação</strong></span>
+     <div class="legend"><span><span class="dot aula"></span><strong>Aulas</strong></span> <span><span class="dot ext"></span><strong>EXT / Projetos</strong></span> <span><span class="dot comp"></span><strong>Compensação</strong></span>
      </div>
     </section>
    </div>
@@ -194,8 +189,7 @@
     <div class="modal-header">
      Editar Bloco
     </div><label style="display:block;color:var(--muted);font-size:12px;margin-bottom:6px">Tipo de Atividade</label> <select id="cell-type" class="modal-input" style="padding:8px;font-size:13px"> <option value="">— Vazio —</option> <option value="aula">🎓 Aula</option> <option value="comp">⧉ Compensação</option> <option value="ext">■ EXT/Projetos</option> </select> <label style="display:block;color:var(--muted);font-size:12px;margin-bottom:6px;margin-top:6px">Nome da Amizade/Turma</label> <input type="text" id="cell-turma" class="modal-input" placeholder="Ex: T40, T41, Turma A"> <label style="display:block;color:var(--muted);font-size:12px;margin-bottom:6px;margin-top:6px">Descrição (opcional)</label> <input type="text" id="cell-content" class="modal-input" placeholder="Ex: Biologia, HA-H79, Projeto X">
-    <div class="modal-actions">
-     <button class="btn" onclick="closeModal()">Cancelar</button> <button class="btn btn-primary" onclick="saveCell()">Salvar</button>
+    <div class="modal-actions"><button class="btn" onclick="closeModal()">Cancelar</button> <button class="btn btn-primary" onclick="saveCell()">Salvar</button>
     </div>
    </div>
   </div>
@@ -288,8 +282,14 @@ async function applyDefaultIfEmpty(){
     });
 
     for (const obj of byTime.values()){
-      await window.dataSdk.create(obj);
+      const result = await window.dataSdk.create(obj);
+      if (result.isOk) {
+        scheduleData.push(obj);
+      }
     }
+    
+    renderTable();
+    updateSummary();
   }
 }
 
@@ -436,6 +436,7 @@ async function saveCell() {
 
     if (existing) {
       existing[day] = cellData;
+      existing.rowType = type;
       await window.dataSdk.update(existing);
     } else {
       const newRecord = {
@@ -494,12 +495,17 @@ function updateSummary() {
     const minutes = (eh * 60 + em) - (sh * 60 + sm);
     const hours = minutes / 60;
 
-    const type = record.rowType;
-    if (type === 'aula') aulasHours += hours;
-    else if (type === 'ext') extHours += hours;
-    else if (type === 'comp') compHours += hours;
-
-    totalHours += hours;
+    // Check each day for content and extract type
+    const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'];
+    days.forEach(day => {
+      if (record[day]) {
+        const type = record[day].split('::')[0];
+        if (type === 'aula') aulasHours += hours;
+        else if (type === 'ext') extHours += hours;
+        else if (type === 'comp') compHours += hours;
+        totalHours += hours;
+      }
+    });
   });
 
   document.getElementById('total-week').textContent = `${totalHours.toFixed(1)}h`;
@@ -571,5 +577,5 @@ document.addEventListener('click', (e) => {
 
 initApp();
 </script>
- <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9d318609e2451a99',t:'MTc3MTk2Mjk1OC4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+ <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9d31ad80f0861a99',t:'MTc3MTk2NDU3NS4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
